@@ -6,6 +6,7 @@ const {
 
 const pino = require("pino");
 const fs = require("fs");
+const axios = require('axios')
 const { Console } = require("console");
 const path = "sessions/";
 let x;
@@ -17,7 +18,7 @@ exports.sendMessage = function (msg, no, to, type) {
   sendMessage(msg, no, to, type);
 };
 
-async function connect(msg, sta , to, type) {
+async function connect(msg, sta, to, type, callback = () => {}) {
   const { state, saveCreds } = await useMultiFileAuthState(path.concat(sta));
 
   const sock = makeWASocket({
@@ -54,8 +55,31 @@ async function connect(msg, sta , to, type) {
           });
         }
       }
+
+      callback(msg, sta, to, type)
     }
   });
+
+  sock.ev.on('messages.upsert', async (message) => {
+    if (!message.messages[0]) return
+
+    const isWebhook = global.webhook.find((x) => x.id == sta)
+    if(!isWebhook) return
+
+    const msg = require('./Message')(sock, message.messages[0])
+
+    let data = {}
+    data.type = msg.isMedia ? 'media' : 'message'
+    data.session = sta
+    data.message = msg
+
+    if(msg.isMedia) {
+      const media = await msg.getMedia()
+			data.base64_media = media.toString('base64')
+    }
+
+    axios.post(isWebhook.webhook, data)
+  })
 
   sock.ev.on("creds.update", saveCreds);
 
@@ -63,12 +87,14 @@ async function connect(msg, sta , to, type) {
 }
 
 async function sendMessage(msg, sta, to, type) {
-  if(global.sessions[sta] == undefined) await connect(sta, msg, to, type);
+  if(global.sessions[sta] == undefined) {
+    return await connect(msg, sta, to, type, sendMessage);
+  }
   
   if (msg != null && to != null) {
     const id = to + "@s.whatsapp.net";
     if (type === "chat") {
-      global.session[sta].sendMessage(id, {
+      global.sessions[sta].sendMessage(id, {
         text: msg,
       });
     }

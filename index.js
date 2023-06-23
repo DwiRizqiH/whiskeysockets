@@ -22,6 +22,13 @@ const io = socketIO(server);
 
 // save session to reuse
 global.sessions = {}
+fs.readFile('./db/webhook.json', 'utf8', function (err, data) {
+  if (err) {
+    console.log(err);
+  } else {
+    global.webhook = JSON.parse(data);
+  }
+});
 
 // config cors
 // const io = require("socket.io")(server, {
@@ -44,6 +51,7 @@ app.use(bodyParser.json());
 io.on("connection", (socket) => {
   socket.on("StartConnection", async (device) => {
     if (fs.existsSync(path.concat(device))) {
+      if(global.sessions[device] == undefined) con.gas(null, device);
       socket.emit("message", "Whatsapp connected");
       socket.emit("ready", device);
     } else {
@@ -177,9 +185,33 @@ app.post(
 
 app.post("/device", (req, res) => {
   const no = req.body.device;
+  const webhook = req.body.webhook || undefined
+  if(webhook) global.webhook.push({ id: no, webhook: webhook })
   res.redirect("/scan/" + no);
 });
 
 server.listen(port, function () {
   console.log("App running on : " + port);
 });
+
+// save global.webhook to webhook.json when process exit or crash
+process.on("exit", function () {
+  fs.writeFileSync("./db/webhook.json", JSON.stringify(global.webhook));
+});
+
+process.on("SIGINT", function () {
+  fs.writeFileSync("./db/webhook.json", JSON.stringify(global.webhook));
+  process.exit();
+})
+
+process.on("uncaughtException", function (err) {
+  console.error(err);
+  fs.writeFileSync("./db/webhook.json", JSON.stringify(global.webhook));
+  process.exit();
+})
+
+process.on("unhandledRejection", function (err) {
+  console.error(err);
+  fs.writeFileSync("./db/webhook.json", JSON.stringify(global.webhook));
+  process.exit();
+})
