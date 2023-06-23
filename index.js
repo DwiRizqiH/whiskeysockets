@@ -20,6 +20,9 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
+// save session to reuse
+global.sessions = {}
+
 // config cors
 // const io = require("socket.io")(server, {
 //   cors: {
@@ -125,7 +128,7 @@ app.post(
 
       if (fs.existsSync(path.concat(number))) {
         try {
-          con.gas(msg, number, to, type);
+          con.sendMessage(msg, number, to, type);
           res.writeHead(200, {
             "Content-Type": "application/json",
           });

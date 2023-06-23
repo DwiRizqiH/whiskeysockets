@@ -11,10 +11,13 @@ const path = "sessions/";
 let x;
 
 exports.gas = function (msg, no, to, type) {
-  connect(no, msg, to, type);
+  connect(msg, no, to, type);
+};
+exports.sendMessage = function (msg, no, to, type) {
+  sendMessage(msg, no, to, type);
 };
 
-async function connect(sta, msg, to, type) {
+async function connect(msg, sta , to, type) {
   const { state, saveCreds } = await useMultiFileAuthState(path.concat(sta));
 
   const sock = makeWASocket({
@@ -23,6 +26,7 @@ async function connect(sta, msg, to, type) {
     logger: pino({ level: "fatal" }),
     browser: ["FFA", "EDGE", "1.0"],
   });
+  global.sessions[sta] = sock;
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -42,14 +46,6 @@ async function connect(sta, msg, to, type) {
       }
     } else if (connection === "open") {
       if (msg != null && to != null) {
-        // for (let x in to) {
-        //   const id = to[x] + "@s.whatsapp.net";
-        //   if (type === "chat") {
-        //     sock.sendMessage(id, {
-        //       text: msg,
-        //     });
-        //   }
-        // }
 
         const id = to + "@s.whatsapp.net";
         if (type === "chat") {
@@ -63,5 +59,18 @@ async function connect(sta, msg, to, type) {
 
   sock.ev.on("creds.update", saveCreds);
 
-  return sock;
+  return sock
+}
+
+async function sendMessage(msg, sta, to, type) {
+  if(global.sessions[sta] == undefined) await connect(sta, msg, to, type);
+  
+  if (msg != null && to != null) {
+    const id = to + "@s.whatsapp.net";
+    if (type === "chat") {
+      global.session[sta].sendMessage(id, {
+        text: msg,
+      });
+    }
+  }
 }
