@@ -114,9 +114,13 @@ app.post(
   "/send",
   [
     body("number").notEmpty(),
-    body("message").notEmpty(),
+    body("message"),
     body("to").notEmpty(),
     body("type").notEmpty(),
+    body("url").isURL(),
+    body("mediatype").optional(),
+    body("filename").optional(),
+    body("mimetype").optional()
   ],
   async (req, res) => {
     const errors = validationResult(req).formatWith(({ msg }) => {
@@ -133,10 +137,36 @@ app.post(
       var to = req.body.to;
       var type = req.body.type;
       var msg = req.body.message;
+      var url = req.body.url;
+      var mediatype = req.body.mediatype;
+      var filename = req.body.filename;
+      var mimetype = req.body.mimetype;
+
+      if(type == 'media' && (url == undefined || mediatype == undefined) || (mediatype == 'document' && mimetype == undefined)) {
+        res.writeHead(401, {
+          "Content-Type": "application/json",
+        });
+        return res.end(
+          JSON.stringify({
+            status: false,
+            message: (mediatype == 'document' && mimetype == undefined) ? "mediatype document need mimetype" : "mediatype and url is required",
+          })
+        );
+      } else if(type == 'chat' && msg == undefined) {
+        res.writeHead(401, {
+          "Content-Type": "application/json",
+        });
+        return res.end(
+          JSON.stringify({
+            status: false,
+            message: "message is required",
+          })
+        );
+      }
 
       if (fs.existsSync(path.concat(number))) {
         try {
-          con.sendMessage(msg, number, to, type);
+          con.sendMessage(msg, number, to, type, url, mediatype, filename, mimetype);
           res.writeHead(200, {
             "Content-Type": "application/json",
           });

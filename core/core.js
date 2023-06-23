@@ -14,11 +14,11 @@ let x;
 exports.gas = function (msg, no, to, type) {
   connect(msg, no, to, type);
 };
-exports.sendMessage = function (msg, no, to, type) {
-  sendMessage(msg, no, to, type);
+exports.sendMessage = function (msg, no, to, type, mediaUrl, mediaType, filename, mimeType) {
+  sendMessage(msg, no, to, type, mediaUrl, mediaType, filename, mimeType);
 };
 
-async function connect(msg, sta, to, type, callback = () => {}) {
+async function connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeType, callback = () => {}) {
   const { state, saveCreds } = await useMultiFileAuthState(path.concat(sta));
 
   const sock = makeWASocket({
@@ -46,17 +46,7 @@ async function connect(msg, sta, to, type, callback = () => {}) {
         return;
       }
     } else if (connection === "open") {
-      if (msg != null && to != null) {
-
-        const id = to + "@s.whatsapp.net";
-        if (type === "chat") {
-          sock.sendMessage(id, {
-            text: msg,
-          });
-        }
-      }
-
-      callback(msg, sta, to, type)
+      callback(msg, sta, to, type, mediaUrl, mediaType, filename, mimeType)
     }
   });
 
@@ -86,17 +76,24 @@ async function connect(msg, sta, to, type, callback = () => {}) {
   return sock
 }
 
-async function sendMessage(msg, sta, to, type) {
+async function sendMessage(msg, sta, to, type, mediaUrl, mediaType, filename = '', mimeType) {
   if(global.sessions[sta] == undefined) {
-    return await connect(msg, sta, to, type, sendMessage);
+    return await connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeType, sendMessage);
   }
   
-  if (msg != null && to != null) {
+  if (to != null) {
     const id = to + "@s.whatsapp.net";
-    if (type === "chat") {
+    if (type === "chat" && msg != null) {
       global.sessions[sta].sendMessage(id, {
         text: msg,
       });
+    } else if(type == 'media') {
+      global.sessions[sta].sendMessage(id, {
+        [mediaType]: { url: mediaUrl },
+        fileName: filename,
+        mimetype: mimeType,
+        caption: msg
+      })
     }
   }
 }
