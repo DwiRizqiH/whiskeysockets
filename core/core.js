@@ -9,6 +9,7 @@ const fs = require("fs");
 const axios = require('axios')
 const { Console } = require("console");
 const path = "sessions/";
+const qrcode = require("qrcode");
 let x;
 
 exports.gas = function (msg, no, to, type) {
@@ -48,6 +49,19 @@ async function connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeTy
     } else if (connection === "open") {
       callback(msg, sta, to, type, mediaUrl, mediaType, filename, mimeType)
     }
+
+    if (qr) {
+      qrcode.toDataURL(qr, (err, url) => {
+        global.qr[sta] = url;
+
+        const isWebhook = global.webhook.find((x) => x.id == sta)
+        if(isWebhook) {
+          axios.post(isWebhook.webhook, { type: 'qr', session: sta, qr: url }).catch((error) => {
+            console.error(`[ Webhook error ${sta} ]`, error)
+          })
+        } 
+      })
+    }
   });
 
   sock.ev.on('messages.upsert', async (message) => {
@@ -68,7 +82,9 @@ async function connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeTy
 			data.base64_media = media.toString('base64')
     }
 
-    axios.post(isWebhook.webhook, data)
+    axios.post(isWebhook.webhook, data).catch((error) => {
+      console.error(`[ Webhook error ${sta} ]`, error)
+    })
   })
 
   sock.ev.on("creds.update", saveCreds);

@@ -20,6 +20,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
+global.qr = []
+
 // save session to reuse
 global.sessions = {}
 fs.readFile('./db/webhook.json', 'utf8', function (err, data) {
@@ -50,7 +52,7 @@ app.use(bodyParser.json());
 
 io.on("connection", (socket) => {
   socket.on("StartConnection", async (device) => {
-    if (fs.existsSync(path.concat(device))) {
+    if ((fs.existsSync(path.concat(device)) && fs.existsSync(path.concat(device).concat("/creds.json"))) || global.sessions[device] != undefined) {
       if(global.sessions[device] == undefined) con.gas(null, device);
       socket.emit("message", "Whatsapp connected");
       socket.emit("ready", device);
@@ -110,6 +112,79 @@ app.get("/scan/:id", (req, res) => {
   res.sendFile(__dirname + "/core//index.html");
 });
 
+app.post('/start',
+[
+  body("id").notEmpty(),
+  body("webhook").optional().isURL(),
+], async (req, res) => {
+  const errors = validationResult(req).formatWith(({ msg }) => {
+    return msg;
+  });
+
+  if (!errors.isEmpty()) {
+    return res.status(422).json({
+      status: false,
+      message: errors.mapped(),
+    });
+  } else {
+    var id = req.body.id;
+    var webhook = req.body.webhook;
+
+    if(global.sessions[id] != undefined) {
+      return res.status(200).json({
+        status: true,
+        message: "Device already started",
+      });
+    }
+    if(webhook) {
+      const isExistWebhook = global.webhook.findIndex((e) => e.id == id);
+      isExistWebhook != -1 ? global.webhook[isExistWebhook].webhook = webhook : global.webhook.push({ id, webhook });
+    }
+
+    con.gas(null, id);
+    return res.status(200).json({
+      status: true,
+      message: "Device started",
+    });
+  }
+})
+
+app.get("/qrcode", async (req, res) => {
+  var id = req.query.id;
+  if(global.sessions[id] == undefined) {
+    res.writeHead(401, {
+      "Content-Type": "application/json",
+    });
+    return res.end(
+      JSON.stringify({
+        status: false,
+        message: "Device not started",
+      })
+    );
+  } else if (global.qr[id] == undefined) {
+    res.writeHead(401, {
+      "Content-Type": "application/json",
+    });
+    return res.end(
+      JSON.stringify({
+        status: false,
+        message: "QR Code not found",
+      })
+    );
+  } else {
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+    });
+    return res.end(
+      JSON.stringify({
+        status: true,
+        message: "QR Code found",
+        data: global.qr[id],
+      })
+    );
+  }
+})
+
 app.post(
   "/send",
   [
@@ -117,7 +192,7 @@ app.post(
     body("message"),
     body("to").notEmpty(),
     body("type").notEmpty(),
-    body("url").isURL(),
+    body("url").optional().isURL(),
     body("mediatype").optional(),
     body("filename").optional(),
     body("mimetype").optional()
