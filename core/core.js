@@ -39,14 +39,17 @@ async function connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeTy
       let statusCode = lastDisconnect.error?.output?.statusCode;
 
       if (statusCode === DisconnectReason.restartRequired) {
-        return;
+        sock.end()
+        return connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeType, callback)
       } else if (statusCode === DisconnectReason.loggedOut) {
+        delete global.sessions[sta];
         if (fs.existsSync(path.concat(sta))) {
-          fs.unlinkSync(path.concat(sta));
+          fs.rmSync(path.concat(sta), { recursive: true });
         }
         return;
       }
     } else if (connection === "open") {
+      delete global.qr[sta]
       callback(msg, sta, to, type, mediaUrl, mediaType, filename, mimeType)
     }
 
