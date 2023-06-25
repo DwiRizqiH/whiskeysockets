@@ -284,7 +284,6 @@ app.post(
 
       if (fs.existsSync(path.concat(number))) {
         await con.sendMessage(msg, number, to, type, url, mediatype, filename, mimetype).then((result) => {
-          console.log(result);
           res.writeHead(200, {
             "Content-Type": "application/json",
           });
