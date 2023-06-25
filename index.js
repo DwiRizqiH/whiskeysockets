@@ -239,9 +239,21 @@ app.post(
         );
       }
 
+      if(global.sessions[number] == undefined) {
+        res.writeHead(401, {
+          "Content-Type": "application/json",
+        });
+        return res.end(
+          JSON.stringify({
+            status: false,
+            message: "Device not started",
+          })
+        );
+      }
+
       if (fs.existsSync(path.concat(number))) {
-        try {
-          con.sendMessage(msg, number, to, type, url, mediatype, filename, mimetype);
+        await con.sendMessage(msg, number, to, type, url, mediatype, filename, mimetype).then((result) => {
+          console.log(result);
           res.writeHead(200, {
             "Content-Type": "application/json",
           });
@@ -251,7 +263,7 @@ app.post(
               message: "success",
             })
           );
-        } catch (error) {
+        }).catch((error) => {
           res.writeHead(401, {
             "Content-Type": "application/json",
           });
@@ -261,7 +273,7 @@ app.post(
               message: error,
             })
           );
-        }
+        });
         // } else {
         //   res.writeHead(401, {
         //     "Content-Type": "application/json",

@@ -15,8 +15,8 @@ let x;
 exports.gas = function (msg, no, to, type) {
   connect(msg, no, to, type);
 };
-exports.sendMessage = function (msg, no, to, type, mediaUrl, mediaType, filename, mimeType) {
-  sendMessage(msg, no, to, type, mediaUrl, mediaType, filename, mimeType);
+exports.sendMessage = async function (msg, no, to, type, mediaUrl, mediaType, filename, mimeType) {
+  return await sendMessage(msg, no, to, type, mediaUrl, mediaType, filename, mimeType);
 };
 
 async function connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeType, callback = () => {}) {
@@ -30,7 +30,7 @@ async function connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeTy
   });
   global.sessions[sta] = sock;
 
-  sock.ev.on("connection.update", (update) => {
+  sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (connection == "connecting") return;
@@ -103,11 +103,11 @@ async function sendMessage(msg, sta, to, type, mediaUrl, mediaType, filename = '
   if (to != null) {
     const id = to + "@s.whatsapp.net";
     if (type === "chat" && msg != null) {
-      global.sessions[sta].sendMessage(id, {
+      return await global.sessions[sta].sendMessage(id, {
         text: msg,
       });
     } else if(type == 'media') {
-      global.sessions[sta].sendMessage(id, {
+      return await global.sessions[sta].sendMessage(id, {
         [mediaType]: { url: mediaUrl },
         fileName: filename,
         mimetype: mimeType,
