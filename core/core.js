@@ -29,13 +29,15 @@ async function connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeTy
     browser: ["FFA", "EDGE", "1.0"],
   });
   global.sessions[sta] = sock;
+  if(global?.sessions?.[sta]) global.sessions[sta].state = 'connecting'
 
-  sock.ev.on("connection.update", async (update) => {
+  sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (connection == "connecting") return;
 
     if (connection === "close") {
+      if(global?.sessions?.[sta]) global.sessions[sta].state = 'close'
       let statusCode = lastDisconnect.error?.output?.statusCode;
 
       if (statusCode === DisconnectReason.restartRequired) {
@@ -50,10 +52,12 @@ async function connect(msg, sta, to, type, mediaUrl, mediaType, filename, mimeTy
       }
     } else if (connection === "open") {
       delete global.qr[sta]
+      if(global?.sessions?.[sta]) global.sessions[sta].state = 'open'
       callback(msg, sta, to, type, mediaUrl, mediaType, filename, mimeType)
     }
 
     if (qr) {
+      if(global?.sessions?.[sta]) global.sessions[sta].state = 'qr'
       qrcode.toDataURL(qr, (err, url) => {
         global.qr[sta] = url;
 

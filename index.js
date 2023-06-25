@@ -185,6 +185,37 @@ app.get("/qrcode", async (req, res) => {
   }
 })
 
+app.post('/status', async (req, res) => {
+  var id = req.body.id;
+  if(global.sessions[id] == undefined) {
+    res.writeHead(401, {
+      "Content-Type": "application/json",
+    });
+    return res.end(
+      JSON.stringify({
+        status: false,
+        message: "Device not started",
+      })
+    );
+  } else {
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+    });
+    return res.end(
+      JSON.stringify({
+        status: true,
+        message: "Device started",
+        data: {
+          state: global?.sessions?.[id]?.state,
+          name: global?.sessions[id]?.user?.name,
+          number: global?.sessions?.[id]?.user?.id,
+          webhook: global.webhook.find((e) => e.id == id) ? global.webhook.find((e) => e.id == id).webhook : null
+        }
+      })
+    );
+  }
+})
+
 app.post(
   "/send",
   [
